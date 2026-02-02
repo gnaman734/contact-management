@@ -27,31 +27,10 @@ export class ContactController {
 
   getContacts = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { search, tag, isFavorite, sortBy = 'createdAt', sortOrder = 'desc', page = 1, limit = 10 } = req.query;
-
-      const filters: any = {};
-      if (search) filters.search = search;
-      if (tag) filters.tag = tag;
-      if (isFavorite !== undefined) filters.isFavorite = isFavorite === 'true';
-
-      const sort = { by: sortBy as string, order: sortOrder as string };
-
-      const { contacts, total } = await this.contactService.getContacts(
-        filters,
-        sort,
-        parseInt(page as string),
-        parseInt(limit as string)
-      );
-
-      const totalPages = Math.ceil(total / parseInt(limit as string));
+      const contacts = await this.contactService.getContacts();
 
       res.json(
-        ApiResponse.success('Contacts retrieved successfully', contacts, {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
-          total,
-          totalPages
-        })
+        ApiResponse.success('Contacts retrieved successfully', contacts)
       );
     } catch (error) {
       next(error);

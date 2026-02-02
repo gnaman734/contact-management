@@ -1,15 +1,9 @@
-import { ContactRepository } from '../repositories/contact.repository';
-import { Contact, IContact } from '../models/contact.model';
 import { ApiError } from '../utils/ApiError';
 
+const contacts: any[] = []; // Temporary in-memory storage
+
 export class ContactService {
-  private contactRepository: ContactRepository;
-
-  constructor() {
-    this.contactRepository = new ContactRepository();
-  }
-
-  async createContact(contactData: Omit<IContact, 'id' | 'createdAt' | 'updatedAt'>): Promise<Contact> {
+  async createContact(contactData: any): Promise<any> {
     // Validate required fields
     if (!contactData.name || !contactData.phone) {
       throw new ApiError(400, 'Name and phone are required');
@@ -17,7 +11,7 @@ export class ContactService {
 
     // Check if email already exists (only if email is provided)
     if (contactData.email) {
-      const existingContact = await this.contactRepository.findByEmail(contactData.email);
+      const existingContact = contacts.find(contact => contact.email === contactData.email);
       if (existingContact) {
         throw new ApiError(409, 'Email already exists');
       }
@@ -34,27 +28,23 @@ export class ContactService {
       throw new ApiError(400, 'Phone number must be at least 10 digits');
     }
 
-    return await this.contactRepository.create(contactData);
+    const newContact = { id: Date.now().toString(), ...contactData };
+    contacts.push(newContact);
+    return newContact;
   }
 
-  async getContacts(
-    filters: any = {},
-    sort: any = {},
-    page: number = 1,
-    limit: number = 10
-  ): Promise<{ contacts: Contact[], total: number }> {
-    return await this.contactRepository.findAll(filters, sort, page, limit);
+  async getContacts(): Promise<any[]> {
+    return contacts;
   }
 
-  async getContactById(id: string): Promise<Contact> {
-    const contact = await this.contactRepository.findById(id);
-    if (!contact) {
-      throw new ApiError(404, 'Contact not found');
-    }
-    return contact;
+  async getContactById(id: string): Promise<any | undefined> {
+    return contacts.find(contact => contact.id === id);
   }
 
-  async updateContact(id: string, updateData: Partial<Omit<IContact, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Contact> {
+  async updateContact(id: string, updateData: any): Promise<any | undefined> {
+    const contactIndex = contacts.findIndex(contact => contact.id === id);
+    if (contactIndex === -1) return undefined;
+
     // Validate email if provided
     if (updateData.email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -63,7 +53,7 @@ export class ContactService {
       }
 
       // Check if email already exists for another contact
-      const existingContact = await this.contactRepository.findByEmail(updateData.email);
+      const existingContact = contacts.find(contact => contact.email === updateData.email);
       if (existingContact && existingContact.id !== id) {
         throw new ApiError(409, 'Email already exists');
       }
@@ -74,17 +64,15 @@ export class ContactService {
       throw new ApiError(400, 'Phone number must be at least 10 digits');
     }
 
-    const contact = await this.contactRepository.update(id, updateData);
-    if (!contact) {
-      throw new ApiError(404, 'Contact not found');
-    }
-    return contact;
+    contacts[contactIndex] = { ...contacts[contactIndex], ...updateData };
+    return contacts[contactIndex];
   }
 
-  async deleteContact(id: string): Promise<void> {
-    const deleted = await this.contactRepository.delete(id);
-    if (!deleted) {
-      throw new ApiError(404, 'Contact not found');
-    }
+  async deleteContact(id: string): Promise<boolean> {
+    const contactIndex = contacts.findIndex(contact => contact.id === id);
+    if (contactIndex === -1) return false;
+
+    contacts.splice(contactIndex, 1);
+    return true;
   }
 }
